@@ -1,0 +1,237 @@
+---
+title: "Semantic Similarity Final"
+author: "Jess Boyle"
+date: "2023-11-06"
+output: 
+  html_document: 
+    toc: yes
+    number_sections: yes
+---
+
+This includes the statistical analysis for the semantic similarity analysis of the NCTE transcripts completed in goggle collab. 
+
+#set up 
+
+```{r}
+rm(list=ls(all=TRUE)) #clear memory
+library(tidyverse) #calling tideverse package
+library(ggplot2) #calling ggplot package
+library(dplyr) #calling dplyr package
+library(corrplot)
+library(PerformanceAnalytics) #for chart.Correlation
+```
+
+# Read in Similiarty Scores and CLASS Data
+```{r}
+#Read in similarity scores from google collab
+sim_scores <- read_csv("ncte_teacher_similarityscores.csv") %>% 
+  select(OBSID, alltext_similar_score, cw_similar_score)
+
+# Calculate mean similarity score for all_text_similar_score
+mean_alltext_similar_score <- sim_scores %>%
+  group_by(OBSID) %>%
+  summarize(
+    count = n(),
+    mean_alltext_similar_score = mean(alltext_similar_score)
+  ) 
+
+# Calculate mean similarity score for cw_similar_score
+mean_cw_similar_score <- sim_scores %>%
+  group_by(OBSID) %>%
+  summarize(
+    count = n(),
+    mean_cw_similar_score = mean(cw_similar_score)
+  )
+
+# Join mean similarity scores 
+mean_sim_scores <- left_join(mean_alltext_similar_score, mean_cw_similar_score, by = "OBSID") %>% 
+  select (OBSID, mean_alltext_similar_score, mean_cw_similar_score)
+
+#Read in CLASS measure scores
+class_scores <- read_csv("class_data.csv") %>% 
+  select(1,13,17:18)
+
+#join dataframes by teacher ID
+ncte_data <- left_join(mean_sim_scores, class_scores, by = "OBSID") %>% 
+  filter(!is.nan(instructional_dialogue))
+
+str(ncte_data)
+
+```
+
+## Examining Descriptives to Use for Describing Data Set
+```{r}
+#Read in CLASS measure scores
+class_scores_id <- read_csv("class_data.csv")
+
+teacher_id <- read_csv("ncte_obsid_ncteid.csv")
+
+#join dataframes by teacher ID
+class_scores_teacher_id <- left_join(class_scores_id, teacher_id, by = "OBSID") %>% 
+  filter(!is.nan(instructional_dialogue))
+
+# how many teachers included
+unique_numbers <- unique(class_scores_teacher_id$NCTETID)
+unique_numbers
+
+# Calculate mean similarity score for cw_similar_score
+mean_cw_similar_score <- class_scores_teacher_id %>%
+  group_by(NCTETID) %>%
+  summarize(
+    count = n(),
+    mean_cw_similar_score = mean(OBSID)
+  )
+
+# Calculate average number of observations per teacher
+average_observations <- class_scores_teacher_id %>%
+  group_by(NCTETID) %>%
+  summarize(OBSID = n()) %>%
+  summarize(average_observations = mean(OBSID))
+
+```
+# Visualize Mean Similarity Scores with Violin Plots
+```{r}
+#Violin Plot for All Words
+ggplot(mean_sim_scores, aes(x = "", y = mean_alltext_similar_score)) +
+  geom_violin(alpha = 0.2) +
+  geom_boxplot(width = 0.1) +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("Mean: ", round(..y.., 2)), x = 0.85),
+               vjust = -1, size = 3.5, color = "blue") +
+  ylab("Mean Similarity Scores") +
+  ggtitle("Violin Plot for Mean Similarity Scores of All Words")
+
+# Violin plot for Content Words
+ggplot(mean_sim_scores, aes(x = "", y = mean_cw_similar_score)) +
+  geom_violin(alpha = 0.2) +
+  geom_boxplot(width = 0.1) +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("Mean: ", round(..y.., 2)), x = 0.85),
+               vjust = -1, size = 3.5, color = "blue") +
+  ylab("Mean Similarity Scores") +
+  ggtitle("Violin Plot for Mean Similarity Scores of Content Words")
+
+psych::describe(mean_sim_scores)
+```
+
+
+# Visualize Mean Scores with Histograms
+```{r}
+#Histogram
+ggplot(mean_sim_scores, aes(mean_alltext_similar_score)) +   
+  geom_histogram(binwidth = 0.1, col = "blue", fill = "blue", alpha = .5) +  
+  xlab("Raw Similarity Scores") + #label the axes
+  ylab("Frequency") +
+  ggtitle("Histogram for Mean Similarity Scores of All Words") #title
+
+#Histogram
+ggplot(mean_sim_scores, aes(mean_cw_similar_score)) +   
+  geom_histogram(binwidth = 0.1, col = "blue", fill = "blue", alpha = .5) +  
+  xlab("Raw Similarity Scores") + #label the axes
+  ylab("Frequency") +
+  ggtitle("Histogram for Mean Similarity Scores of Content Words") #title
+
+```
+
+
+# Examine Relationship between Similarity Scores & CLASS Variables
+```{r}
+cor(ncte_data[2:6], use = "pairwise.complete.obs")
+
+library(PerformanceAnalytics) #for chart.Correlation
+chart.Correlation(ncte_data[2:6], histogram = TRUE, method = "pearson")
+```
+
+
+# Examine Raw Similarity Score Data with Histograms
+```{r}
+#Histogram
+ggplot(sim_scores, aes(alltext_similar_score)) +   
+  geom_histogram(binwidth = 0.1, col = "blue", fill = "blue", alpha = .5) +  
+  xlab("Raw Similarity Scores of All Text") + #label the axes
+  ylab("Frequency") +
+  ggtitle("Histogram for Raw Similarity Scores of All Text") #title
+
+#Histogram
+ggplot(sim_scores, aes(cw_similar_score)) +   
+  geom_histogram(binwidth = 0.1, col = "blue", fill = "blue", alpha = .5) +  
+  xlab("Raw Similarity Scores") + #label the axes
+  ylab("Frequency") +
+  ggtitle("Histogram for Raw Similarity Scores of Content Words") #title
+
+```
+
+# Examine Raw Similarity Score Data with Violin Plots
+```{r}
+# Violin plot for Content Words
+ggplot(sim_scores, aes(x = "", y = cw_similar_score)) +
+  geom_violin(alpha = 0.2) +
+  geom_boxplot(width = 0.1) +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("Mean: ", round(..y.., 2)), x = 0.85),
+               vjust = -1, size = 3.5, color = "blue") +
+  ylab("Raw Similarity Scores") +
+  ggtitle("Violin Plot for Raw Similarity Scores of Content Words")
+```
+
+
+
+
+# Remove Zero Scores in Content Words and Examine New Correlation with CLASS Outcomes
+```{r}
+#filter out 0 rows
+filtered_scores <- sim_scores %>%
+  filter(cw_similar_score != 0)
+#Went from 207427 observations to 197009 (removed 10,000)
+
+# Calculate mean similarity score for filtered cw_similar_score
+filtered_mean_cw_sim_scores <- filtered_scores %>%
+  group_by(OBSID) %>%
+  summarize(
+    count = n(),
+    mean_cw_similar_score = mean(cw_similar_score)
+  )
+
+# Calculate mean similarity score for all_text_similar_score
+filtered_mean_alltext_sim_scores <- filtered_scores %>%
+  group_by(OBSID) %>%
+  summarize(
+    count = n(),
+    mean_alltext_similar_score = mean(alltext_similar_score)
+  ) 
+
+# Join filtered mean similarity scores 
+filtered_mean_sim_scores <- left_join(filtered_mean_alltext_sim_scores, filtered_mean_cw_sim_scores, by = "OBSID") %>% 
+  select (OBSID, mean_alltext_similar_score, mean_cw_similar_score)
+
+#join dataframes by teacher ID
+filtered_ncte_data <- left_join(filtered_mean_sim_scores, class_scores, by = "OBSID") %>% 
+  filter(!is.nan(instructional_dialogue))
+
+```
+
+
+# How are Filtered and Unfiltered Scores Different
+```{r}
+library(psych) #load in psych package
+
+psych::describe(ncte_data)
+psych::describe(filtered_ncte_data)
+
+```
+
+# Examine Relationship between Filtered Similarity Scores & CLASS Variables
+```{r}
+cor(filtered_ncte_data[2:6], use = "pairwise.complete.obs")
+
+library(PerformanceAnalytics) #for chart.Correlation
+chart.Correlation(filtered_ncte_data[2:6], histogram = TRUE, method = "pearson")
+
+```
+
+
+
+
+
+
+
