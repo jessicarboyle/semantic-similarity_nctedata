@@ -1,17 +1,26 @@
 # semantic-similarity_nctedata
-Overview:
+**Overview:**
+
 This analysis assessed the cohesiveness of teacher discourse during classroom instruction to explore its relationship with a widely used observational measure of instructional quality. The study used classroom transcripts, specifically focusing on teacher dialogue, drawn from a nationally representative da-taset of observations in elementary math classrooms [7]. Each transcript was paired with corresponding quality ratings from Classroom Atmosphere Scoring System (CLASS) observations completed by expert raters. The CLASS is an observational tool used to assess teacher and student social and instruction-al interactions, as well as the intentionality and productivity of the classroom context [8]. The CLASS scores selected for this study included Instructional Dialogue, Instructional Sup-port, and an overall quality rating. 
+
+
 To assess the cohesiveness of teachers’ discourse, spaCy was used to calculate the semantic similarity between adjacent teacher utterances. This was completed for all words in each teacher utterance and exclusively for the content words in each utterance. This analysis examines the semantic similarity be-tween teachers' adjacent utterances and its relation to the qual-ity ratings for instructional dialogue, instructional support, and the overall CLASS score.
 
 
-Data Includes: 
+**Data:**
+
 The open-source National Center for Teacher Effectiveness (NCTE) transcript dataset includes anonymized transcripts from teachers’ classroom observations from the NCTE Main Study [20]. The observations occurred between 2010-2013 in 4th and 5th-grade elementary math classrooms across four dis-tricts, predominately serving historically marginalized stu-dents. The transcripts are linked with a variety of outcome variables including classroom observation scores, demograph-ic information, survey responses, and student scores. The en-tire NCTE dataset can be found at: https://github.com/ddemszky/classroom-transcript-analysis. 
 This analysis focused on the classroom transcripts and the linked Classroom Atmosphere Scoring System (CLASS) data. Associated code and additional details about the data used in this analysis can be found at: https://github.com/jessicarboyle/student-academic-engagement-analysis.
-4.1.1	Classroom Transcripts
+
+**Classroom Transcripts
+
 This analysis includes 1325 observation transcripts from 301 teachers, each with an average of 4 transcripts. Classroom les-sons were captured using three cameras, a lapel microphone for teacher talk, and a bidirectional microphone for student talk. The recordings were transcribed by professional transcribers working under contract for a commercial transcription compa-ny. 
 The transcripts were organized by speaker turns (teacher, stu-dents, multiple students) where each row of the transcript data frame represents a speaker turn or utterance that may contain one or more speech acts or "sentences". In this analysis, stu-dent talk was removed and only teacher turns were analyzed. On average, the transcripts contain 5,733 words, with 87.7% of which are spoken by the teachers, and with 172 teacher ut-terances per transcript.
 The transcripts are fully anonymized: student and teacher names are replaced with terms like “Student J”, “Teacher” or “Mrs. H”. Transcribers used square brackets to indicate when speech was [Inaudible], if they were unsure of a particular word due to audio quality, or to include meta-data such as [laughter], [students putting away materials]. All bracketed information was removed from the transcripts for this analy-sis. 
-4.1.2	Classroom Assessment Scoring System (CLASS) Scores
+
+
+**Classroom Assessment Scoring System (CLASS) Scores
+
 The CLASS includes 3 domains and 11 sub-dimensions meas-uring teacher-student interactions. This analysis includes the overall CLASS score, the Instructional Support domain, and the Instructional Dialogue dimension. Observers score each dimension using a 7-point scale.
 The overall CLASS score represents the teachers' average abil-ity across the 3 domains and 11 dimensions. The Emotional Support domain includes the Positive Climate, Teacher Sensi-tivity, and Regard for Student Perspectives dimensions; the Classroom Organization domain includes the Behavior Man-agement, Productivity, and Negative Climate dimensions; and the Instructional Support domain includes the Instructional Learning Format, Content Understanding, Analysis and In-quiry, Quality Feedback, and Instructional Dialogue dimen-sions. 
 The Instructional Support domain measures the teachers' in-structional support ability to enhance learning through con-sistent, process-oriented feedback, focus on higher-order thinking skills, and presentation of new content within a broader, meaningful context. The instructional support domain score is calculated by taking an average of its' 5 dimensions' scores.
