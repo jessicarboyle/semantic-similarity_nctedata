@@ -1,4 +1,4 @@
-# semantic-similarity_nctedata
+# Semantic Similarity of Teachers’ Classroom Discourse Linked to Quality Ratings from Classroom Observations 
 **Overview:**
 
 This analysis assessed the cohesiveness of teacher discourse during classroom instruction to explore its relationship with a widely used observational measure of instructional quality. The study used classroom transcripts, specifically focusing on teacher dialogue, drawn from a nationally representative da-taset of observations in elementary math classrooms [7]. Each transcript was paired with corresponding quality ratings from Classroom Atmosphere Scoring System (CLASS) observations completed by expert raters. The CLASS is an observational tool used to assess teacher and student social and instruction-al interactions, as well as the intentionality and productivity of the classroom context [8]. The CLASS scores selected for this study included Instructional Dialogue, Instructional Sup-port, and an overall quality rating. 
