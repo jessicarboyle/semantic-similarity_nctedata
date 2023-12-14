@@ -26,3 +26,17 @@ The overall CLASS score represents the teachers' average abil-ity across the 3 d
 The Instructional Support domain measures the teachers' in-structional support ability to enhance learning through con-sistent, process-oriented feedback, focus on higher-order thinking skills, and presentation of new content within a broader, meaningful context. The instructional support domain score is calculated by taking an average of its' 5 dimensions' scores.
 The Instructional Dialogue dimension is defined as the pur-poseful use of cumulative content-focused discussion among teachers and students. It measures whether teachers actively support students in connecting ideas and fostering a deeper understanding of the content. Lower scores (1,2) are assigned when there are minimal or no discussions in the classroom, and when the teacher seldom acknowledges, repeats, or ex-tends on comments. Mid-range scores (3,4,5) are given when discussions occur, but they are brief or shift rapidly between topics without subsequent questions or comments. Higher scores (6,7) indicate the presence of frequent, content-driven discussions between teachers and students, fostering cumula-tive exchanges where teachers actively promote elaborate dia-logue through open-ended questions and repetitions.
 
+
+**Code Included:**
+
+**.ipyn file
+
+This codes includes data cleaning and the semantic similarity analysis. For the analysis that included all the words, punctuation was removed from the original NCTE transcripts. This step was critical due to the arbitrary nature of punctuation in the tran-scription of spoken language, where people often express themselves without strictly adhering to conventional written sentence structures, especially in a context such as a class-room. Eliminating punctuation ensured the analysis focused on the teachers’ words and the semantic similarity scores were not impacted by punctuation. For the analysis that included only content words, The Natural Language Toolkit (NLTK) was used to remove stop words, a predetermined set of commonly used words (e.g., a, the, is) that carry minimal useful information. By filtering out the stop words, the analysis isolated essential content words, provid-ing a focused examination of words carrying the primary mes-sage in the teachers’ utterances. Both analyses used spaCy’s large English model to calculate the semantic similarity scores.
+
+**.rmd file
+
+This code includes the statistical analysis examining the relationship between semantic similarity scores and the CLASS measures. It includes descriptive analsysis and correlations.
+
+
+
+
