@@ -9,8 +9,7 @@ To assess the cohesiveness of teachers’ discourse, spaCy was used to calculate
 
 **Data:**
 
-The open-source National Center for Teacher Effectiveness (NCTE) transcript dataset includes anonymized transcripts from teachers’ classroom observations from the NCTE Main Study [20]. The observations occurred between 2010-2013 in 4th and 5th-grade elementary math classrooms across four dis-tricts, predominately serving historically marginalized stu-dents. The transcripts are linked with a variety of outcome variables including classroom observation scores, demograph-ic information, survey responses, and student scores. The en-tire NCTE dataset can be found at: https://github.com/ddemszky/classroom-transcript-analysis. 
-This analysis focused on the classroom transcripts and the linked Classroom Atmosphere Scoring System (CLASS) data. Associated code and additional details about the data used in this analysis can be found at: https://github.com/jessicarboyle/student-academic-engagement-analysis.
+The open-source National Center for Teacher Effectiveness (NCTE) transcript dataset includes anonymized transcripts from teachers’ classroom observations from the NCTE Main Study [20]. The observations occurred between 2010-2013 in 4th and 5th-grade elementary math classrooms across four dis-tricts, predominately serving historically marginalized stu-dents. The transcripts are linked with a variety of outcome variables including classroom observation scores, demograph-ic information, survey responses, and student scores. The en-tire NCTE dataset can be found at: https://github.com/ddemszky/classroom-transcript-analysis. This analysis focused on the classroom transcripts and the linked Classroom Atmosphere Scoring System (CLASS) data. 
 
 **Classroom Transcripts
 
