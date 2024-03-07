@@ -1,0 +1,107 @@
+---
+title: "Semantic Similarity Final"
+author: "Jess Boyle"
+date: "2023-11-06"
+output: 
+  html_document: 
+    toc: yes
+    number_sections: yes
+---
+
+# Set up 
+
+```{r}
+rm(list=ls(all=TRUE)) #clear memory
+library(tidyverse) #calling tideverse package
+library(ggplot2) #calling ggplot package
+library(dplyr) #calling dplyr package
+library(corrplot)
+library(tidyr)
+library(readr)
+library(PerformanceAnalytics) #for chart.Correlation
+```
+
+# Read in data & calculcate mean semantic similarity scores
+Reading in the semantic similarity scores from the NLP analysis and creating an average score for each observation (OBSID). The semantic similarity scores include teacher to student utterances for all words included in the transcript and for only content words. Reading in the scores for the Teacher's Use of Student Math Contributions variable included in Mathematics Quality of Instruction (MQI) classroom observation which will serve as the outcome variable. 
+
+```{r}
+# Read and preprocess each similarity score data frame
+#teacher and student utterances
+teacher_student_sim_scores <- read_csv("ncte_utterances_final_semanticsimilarity.csv") %>%
+  select(OBSID, alltext_similar_score, content_words_similarity) %>%
+  rename(ts_aw_score = alltext_similar_score, ts_cw_score = content_words_similarity) %>%
+  group_by(OBSID) %>%
+  summarise(across(c(ts_aw_score, ts_cw_score), mean, na.rm = TRUE))
+
+# Read in Mathematical Quality of Instruction (MQI) measure scores
+tstudea_scores <- read_csv("mqi_data.csv") %>% 
+  select(NCTETID, OBSID, TSTUDEA) %>% 
+  group_by(OBSID) %>% 
+  summarise(across(c(TSTUDEA, NCTETID), mean, na.rm = TRUE))
+
+# Join dataframes
+mqi_df <- reduce(list(teacher_student_sim_scores, tstudea_scores), full_join, by = "OBSID") %>% 
+  filter(!is.na(TSTUDEA)) %>% 
+  filter(!is.na(ts_aw_score))
+
+# Aggregate scores for each teacher
+similarity_df <- mqi_df %>% 
+  group_by(NCTETID) %>%
+  summarise(across(c(ts_aw_score, ts_cw_score, TSTUDEA), mean, na.rm = TRUE))
+
+```
+
+# Examine Correlations
+
+```{r}
+cor(similarity_df)
+
+chart.Correlation(similarity_df, histogram = TRUE, method = "pearson")
+
+```
+
+# Simple Linear Regression Model
+
+```{r}
+# model
+similarity_lm <- lm(TSTUDEA ~ ts_aw_score, similarity_df)
+
+# see results
+summary(similarity_lm)
+
+#RMSE
+sqrt(mean(similarity_lm$residuals^2))
+
+#MULTICOLLINEARITY
+car::vif(similarity_lm)
+
+#HOMOSCEDASTICITY
+
+#Are residuals normally distributed?
+shapiro.test(residuals(similarity_lm)) #it's okay, p value under .05
+plot(similarity_lm, which = 2) #qq plot. Not great
+plot(similarity_lm, which = 1) #residuals over fitted values (it's not spread out evenly signaling problem of some sort)
+
+```
+
+# Graphing model outcomes
+
+```{r}
+library(ggplot2)
+
+actual <- similarity_df$TSTUDEA
+fitted <- unname(similarity_lm$fitted.values) #would have been a named number vector if unname not used #grab up the fitted values from the regression model
+
+act_fit <- cbind.data.frame(actual, fitted) #cbind binds the two vectors into a dataframe
+
+ggplot(act_fit, aes(x = actual, y = fitted)) +
+  geom_point() +
+  xlab("Actual value") +
+  ylab("Predicted value") +
+  ggtitle("Scatterplot for Actual and Fitted Values for Teacher-To-Student Utterances & MQI Scores") +
+  geom_abline(intercept = 1,
+              slope = 1,
+              color = "red",
+              size = 2)
+```
+

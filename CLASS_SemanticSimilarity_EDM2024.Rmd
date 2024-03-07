@@ -1,0 +1,375 @@
+---
+title: "Semantic Similarity Final"
+author: "Jess Boyle"
+date: "2023-11-06"
+output: 
+  html_document: 
+    toc: yes
+    number_sections: yes
+---
+
+# Set up 
+
+```{r}
+rm(list=ls(all=TRUE)) #clear memory
+library(tidyverse) #calling tideverse package
+library(ggplot2) #calling ggplot package
+library(dplyr) #calling dplyr package
+library(corrplot)
+library(tidyr)
+library(readr)
+library(PerformanceAnalytics) #for chart.Correlation
+```
+
+# Read in data & calculcate mean semantic similarity scores
+Reading in the semantic similarity scores from the NLP analysis and creating an average score for each observation (OBSID). The semantic similarity scores include compare teacher to teacher utterances, student to student utterances, and teacher to student utterances for all words included in the transcript and for only content words. Reading in the scores for the Instructional Dialogue variable included in Classroom Atmosphere Scoring System (CLASS) classroom observation which will serve as the outcome variable. Each teacher has multiple observations therefore an averages were calculated for the semantic similarity scores and the CLASS scores. 
+
+```{r}
+# Read and preprocess each similarity score data frame
+#teacher and student utterances
+teacher_student_sim_scores <- read_csv("ncte_utterances_final_semanticsimilarity.csv") %>%
+  select(OBSID, alltext_similar_score, content_words_similarity) %>%
+  rename(ts_aw_score = alltext_similar_score, ts_cw_score = content_words_similarity) %>%
+  group_by(OBSID) %>%
+  summarise(across(c(ts_aw_score, ts_cw_score), mean, na.rm = TRUE))
+
+#teacher (only)
+teacher_sim_scores <- read_csv("ncte_teacher_similarityscores_2.csv") %>%
+  select(OBSID, alltext_similar_score, cw_similar_score) %>%
+  rename(t_aw_score = alltext_similar_score, t_cw_score = cw_similar_score) %>%
+  group_by(OBSID) %>%
+  summarise(across(c(t_aw_score, t_cw_score), mean, na.rm = TRUE))
+
+student_sim_scores <- read_csv("ncte_student_similarityscores.csv") %>%
+  select(OBSID, alltext_similar_score, cw_similar_score) %>%
+  rename(s_aw_score = alltext_similar_score, s_cw_score = cw_similar_score) %>%
+  group_by(OBSID) %>%
+  summarise(across(c(s_aw_score, s_cw_score), mean, na.rm = TRUE))
+
+# Join the summarized data frames
+joined_df <- reduce(list(teacher_student_sim_scores, teacher_sim_scores, student_sim_scores), full_join, by = "OBSID")
+
+# Read in CLASS measure scores
+class_scores <- read_csv("class_data.csv") %>%
+  select(OBSID, instructional_dialogue) # observation ID and outcome variable
+
+# Join the CLASS outcome data with the semantic similarity scores by osbervation ID (OBSID)
+joined_df <- left_join(joined_df, class_scores, by = "OBSID") %>%
+  filter(!is.na(instructional_dialogue))
+
+# Aggregated scores for each teacher
+teacher_id <- read_csv("ncte_obsid_ncteid.csv")
+
+#join dataframes by teacher ID
+joined_df_2 <- left_join(joined_df, teacher_id, by = "OBSID")
+
+# Create average scores so one case per teacher
+final_df <- joined_df_2 %>% 
+  group_by(NCTETID) %>%
+  summarise(across(c(s_aw_score, s_cw_score, t_aw_score, t_cw_score, ts_aw_score, ts_cw_score, instructional_dialogue), mean, na.rm = TRUE))
+
+```
+
+# Explore distributions of variables
+Examine the relationship between the average semantic similarity scores and the average instructional dialogue scores.
+
+```{r}
+cor(final_df)
+
+chart.Correlation(final_df[2:8], histogram = TRUE, method = "pearson")
+```
+
+# Examine multicolinearity
+Examine the correlation between the semantic similarity predictors. See that each group (teacher-teacher, student-student, teacher-student) are highly correlated with each other which is not suprising. Kept all words scores in for the first model.
+
+```{r}
+
+cor_matrix <- abs(cor(final_df[, c(2:8)])) #create a correlation matrix with  absolute values
+
+corrplot(cor_matrix, 
+         type="lower", #put color strength on bottom
+         tl.pos = "ld", #Character or logical, position of text labels, 'ld'(default if type=='lower') means left and diagonal,
+         tl.cex = 0.50, #Numeric, for the size of text label (variable names).
+         method="color", 
+         addCoef.col="black", 
+         diag=FALSE,
+         tl.col="black", #The color of text label.
+         tl.srt=45, #Numeric, for text label string rotation in degrees, see text
+         is.corr = FALSE, #if you include correlation matrix (maybe?)
+         #order = "hclust", #order results by strength
+         #col=gray.colors(100), #in case you want it in gray...
+         number.digits = 2) #number of digits after decimal
+
+# keep the all words scores because strong predictors when looking at correlations with instructional dialogue
+
+final_df_2 <- final_df %>% 
+  select(2,4,6,8)
+
+str(final_df_2)
+
+```
+
+# 10 fold cross validation with feature selection
+
+```{r}
+library(caret) # library needed for cross validation and feature selection
+
+set.seed(123)#set seed for replication of cross-validation at later time
+
+# Set up repeated 10-fold cross-validation
+train_control <- trainControl(method = "cv", number = 10)
+#method = cross validation, number = ten times (10 fold cross-validation)
+
+#the LM model used
+lm_cv10_step <- train(instructional_dialogue ~ ., 
+                data = final_df_2,
+                method = "leapSeq", #stepwise selection 
+                           tuneGrid = data.frame(nvmax = 1:3), #using the 3 all word predictors
+                           trControl = train_control)
+                
+#the model
+summary(lm_cv10_step)
+
+
+```
+
+# Final Model
+
+```{r}
+#best tuned model
+lm_cv10_step$bestTune
+
+lm_cv10_step$results
+
+#co-efficients for model using 2 variables
+coef(lm_cv10_step$finalModel, 2) #check for any suppression effects. all match the correlation direction
+
+#final linear model
+final_lm <- lm(instructional_dialogue~ ts_aw_score + t_aw_score, data = final_df_2) #include the 2 predictors from feature selection
+
+summary(final_lm) # this shows the statistical info for the model chosen through cv and feature selection
+```
+
+# Visualization of the linear model for all words semantic similarity scores
+
+```{r}
+library(ggplot2)
+actual <- final_df_2$instructional_dialogue
+fitted <- unname(final_lm$fitted.values) #would have been a named number vector if unname not used
+#grab up the fitted values from the regression model
+
+act_fit <- cbind.data.frame(actual, fitted) #cbind binds the two vectors into a dataframe
+
+ggplot(act_fit, aes(x = actual, y = fitted)) +
+  geom_point() +
+  xlab("Actual values") +
+  ylab("Predicted values") +
+  ggtitle("Scatterplot for Actual and Fitted Values for All Words Semantic Similarity and CLASS Scores") +
+  geom_abline(intercept = 1,
+              slope = 1,
+              color = "blue",
+              linewidth = 2)
+```
+
+# Examine the Raw Content Word Semantic Similarity Scores
+
+```{r}
+# Teacher and student utterances
+ts_raw_cw <- read_csv("ncte_utterances_final_semanticsimilarity.csv") %>%
+  select(OBSID, content_words_similarity) %>%
+  rename(ts_cw_score = content_words_similarity)
+
+# Teacher (only)
+t_raw_cw <- read_csv("ncte_teacher_similarityscores_2.csv") %>%
+  select(OBSID, cw_similar_score) %>%
+  rename(t_cw_score = cw_similar_score)
+
+# Student (only)
+s_raw_cw <- read_csv("ncte_student_similarityscores.csv") %>%
+  select(OBSID, cw_similar_score) %>%
+  rename(s_cw_score = cw_similar_score)
+
+```
+
+# Violin Plots for Content Word Raw Scores
+
+```{r}
+# Violin plot for Content Words Teacher & Student Utterances
+ggplot(ts_raw_cw, aes(x = "", y = ts_cw_score)) +
+  geom_violin(alpha = 0.2) +
+  geom_boxplot(width = 0.1) +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("Mean: ", round(..y.., 2)), x = 0.85),
+               vjust = -1, size = 3.5, color = "blue") +
+  ylab("Raw Similarity Scores") +
+  ggtitle("Violin Plot for Raw Similarity Scores of Content Words for Teacher & Student Utterances")
+
+# Violin plot for Content Words for Teacher Utterances
+ggplot(t_raw_cw, aes(x = "", y = t_cw_score)) +
+  geom_violin(alpha = 0.2) +
+  geom_boxplot(width = 0.1) +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("Mean: ", round(..y.., 2)), x = 0.85),
+               vjust = -1, size = 3.5, color = "blue") +
+  ylab("Raw Similarity Scores") +
+  ggtitle("Violin Plot for Raw Similarity Scores of Content Words for Teacher Utterances")
+
+# Violin plot for Content Words for Student Utterances
+ggplot(s_raw_cw, aes(x = "", y = s_cw_score)) +
+  geom_violin(alpha = 0.2) +
+  geom_boxplot(width = 0.1) +
+  stat_summary(fun = mean, geom = "text", 
+               aes(label = paste("Mean: ", round(..y.., 2)), x = 0.85),
+               vjust = -1, size = 3.5, color = "blue") +
+  ylab("Raw Similarity Scores") +
+  ggtitle("Violin Plot for Raw Similarity Scores of Content Words for Student Utterances")
+
+
+```
+
+
+# Remove zeros from the raw content words
+
+```{r}
+# Read and preprocess each similarity score data frame
+# Teacher and student utterances
+teacher_student_sim_scores_2 <- read_csv("ncte_utterances_final_semanticsimilarity.csv") %>%
+  select(OBSID, content_words_similarity) %>%
+  rename(ts_cw_score = content_words_similarity) %>%
+  filter(ts_cw_score != 0) %>%
+  group_by(OBSID) %>%
+  summarise(mean_ts_cw_score = mean(ts_cw_score, na.rm = TRUE))
+
+# Teacher (only)
+teacher_sim_scores_2 <- read_csv("ncte_teacher_similarityscores_2.csv") %>%
+  select(OBSID, cw_similar_score) %>%
+  rename(t_cw_score = cw_similar_score) %>%
+  filter(t_cw_score != 0) %>%
+  group_by(OBSID) %>%
+  summarise(mean_t_cw_score = mean(t_cw_score, na.rm = TRUE))
+
+# Student (only)
+student_sim_scores_2 <- read_csv("ncte_student_similarityscores.csv") %>%
+  select(OBSID, cw_similar_score) %>%
+  rename(s_cw_score = cw_similar_score) %>%
+  filter(s_cw_score != 0) %>%
+  group_by(OBSID) %>%
+  summarise(mean_s_cw_score = mean(s_cw_score, na.rm = TRUE))
+
+# Join the summarized data frames
+joined_df_2 <- reduce(list(teacher_student_sim_scores_2, teacher_sim_scores_2, student_sim_scores_2), full_join, by = "OBSID")
+
+# Read in CLASS measure scores
+class_scores_2 <- read_csv("class_data.csv") %>%
+  select(OBSID, instructional_dialogue)
+
+# Join the CLASS outcome data with the semantic similarity scores by observation ID (OBSID)
+class_df_filtered <- left_join(joined_df_2, class_scores_2, by = "OBSID") %>%
+  filter(!is.na(instructional_dialogue))
+
+# Aggregated scores for each teacher
+teacher_id <- read_csv("ncte_obsid_ncteid.csv")
+
+#join dataframes by teacher ID
+joined_filtered_df <- left_join(class_df_filtered, teacher_id, by = "OBSID")
+
+# Create average scores so one case per teacher
+filtered_final_df <- joined_filtered_df %>% 
+  group_by(NCTETID) %>%
+  summarise(across(c(mean_s_cw_score, mean_t_cw_score, mean_ts_cw_score, instructional_dialogue), mean, na.rm = TRUE))
+
+```
+
+# Examine correlations for filtered cw data
+
+```{r}
+cor(filtered_final_df)
+
+chart.Correlation(filtered_final_df[2:5], histogram = TRUE, method = "pearson")
+```
+
+# Examine multicolinearity for filtered cw data
+
+```{r}
+
+cor_matrix_2 <- abs(cor(filtered_final_df[, c(2:5)])) #create a correlation matrix with  absolute values
+
+corrplot(cor_matrix_2, 
+         type="lower", #put color strength on bottom
+         tl.pos = "ld", #Character or logical, position of text labels, 'ld'(default if type=='lower') means left and diagonal,
+         tl.cex = 0.50, #Numeric, for the size of text label (variable names).
+         method="color", 
+         addCoef.col="black", 
+         diag=FALSE,
+         tl.col="black", #The color of text label.
+         tl.srt=45, #Numeric, for text label string rotation in degrees, see text
+         is.corr = FALSE, #if you include correlation matrix (maybe?)
+         #order = "hclust", #order results by strength
+         #col=gray.colors(100), #in case you want it in gray...
+         number.digits = 2) #number of digits after decimal
+
+filtered_final_df_2 <- filtered_final_df %>% 
+  select(2:5)
+
+```
+
+# Linear model for filtered content word data
+
+```{r}
+library(caret) # library needed for cross validation and feature selection
+
+set.seed(123)#set seed for replication of cross-validation at later time
+
+# Set up repeated 10-fold cross-validation
+train_control <- trainControl(method = "cv", number = 10)
+#method = cross validation, number = ten times (10 fold cross-validation)
+
+#the LM model used
+lm_cv10_step_2 <- train(instructional_dialogue ~ ., 
+                data = filtered_final_df_2,
+                method = "leapSeq", #stepwise selection 
+                           tuneGrid = data.frame(nvmax = 1:3), # using 3 cw predictors
+                           trControl = train_control)
+                
+#the model
+summary(lm_cv10_step_2)
+```
+
+# Final model for filtered content words data
+
+```{r}
+#best tuned model
+lm_cv10_step_2$bestTune
+
+lm_cv10_step_2$results
+
+#co-efficients for model using 1 variables
+coef(lm_cv10_step_2$finalModel, 1) #check for any suppression effects. all match the correlation direction
+
+#final linear model
+final_lm_2 <- lm(instructional_dialogue~ mean_ts_cw_score, data = filtered_final_df_2) #include the 2 predictors from feature selection
+
+summary(final_lm_2) # this shows the statistical info for the model chosen through cv and feature selection
+```
+
+# Visualization
+
+```{r}
+library(ggplot2)
+actual <- filtered_final_df$instructional_dialogue
+fitted <- unname(final_lm_2$fitted.values) #would have been a named number vector if unname not used
+#grab up the fitted values from the regression model
+
+act_fit <- cbind.data.frame(actual, fitted) #cbind binds the two vectors into a dataframe
+
+ggplot(act_fit, aes(x = actual, y = fitted)) +
+  geom_point() +
+  xlab("Actual values") +
+  ylab("Predicted values") +
+  ggtitle("Scatterplot for Actual and Fitted Values for Filtered Content Words") +
+  geom_abline(intercept = 1,
+              slope = 1,
+              color = "blue",
+              linewidth = 2)
+```
+
